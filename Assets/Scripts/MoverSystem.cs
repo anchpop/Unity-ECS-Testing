@@ -10,15 +10,17 @@ public class Moversystem1 : ComponentSystem
 {
     float sunGravity = 4;
     float planetGravity = 1;
-
-    Testing test;
+  
 
     protected override void OnUpdate()
     {
-        test = GameObject.FindGameObjectWithTag("Player").GetComponent<Testing>();
-        NativeArray<Entity> satelliteArray = new NativeArray<Entity>(1000, Allocator.Temp);
-        NativeArray<Translation> planetArray = new NativeArray<Translation>(test.numPlanets, Allocator.Temp);
+        // First we get the current number of planets from the Tester gameobject
+        int numPlanets = GameObject.FindGameObjectWithTag("Player").GetComponent<Testing>().numPlanets;
 
+        // Allocate an array to hold all the planet positions
+        NativeArray<Translation> planetArray = new NativeArray<Translation>(numPlanets, Allocator.Temp);
+
+        // Iterate over all the planets and put their positions in our array
         int i = 0;
         Entities.ForEach((ref PlanetClassComponent _, ref Translation translation) =>
         {
@@ -26,16 +28,20 @@ public class Moversystem1 : ComponentSystem
             i++;
         });
 
+        // Move all the planets towads the sun (which is always at 0,0 so it's eary)
         Entities.ForEach((ref PlanetClassComponent planet, ref Translation translation, ref VelocityComponent vel) =>
         {
             if (!planet.controlledByUser)
             {
+                // to move towards the center, we just calculate the force of gravity and add it to the velocity
                 var magnitude = math.max(getMagnitude(translation.Value), .1f);
                 var normalized = normalize(new float2(translation.Value.x, translation.Value.y));
                 vel.v += (sunGravity * Time.deltaTime * -normalized) / math.pow(magnitude, 2);
             }
             else
             {
+                // If the user is controlling us, set the position to be the mousepositioe and 
+                // the velocity to be the rate at which the user is movint the mouse
                 var v3 = Input.mousePosition;
                 v3.z = 10.0f;
                 v3 = Camera.main.ScreenToWorldPoint(v3);
@@ -43,6 +49,8 @@ public class Moversystem1 : ComponentSystem
                 var velocity = diff / Time.deltaTime;
                 vel.v = new float2(velocity.x, velocity.y);
                 translation.Value = new float3(v3.x, v3.y, 0);
+
+                // If they leg go of the mouse this frame, move and be free
                 if (Input.GetMouseButtonUp(0))
                 {
                     vel.kinematic = false;
@@ -54,12 +62,7 @@ public class Moversystem1 : ComponentSystem
 
         Entities.ForEach((ref SatelliteClassComponent _, ref Translation translation, ref VelocityComponent vel) =>
         {
-            // do sun gravity
-            //var magnitude = math.max(getMagnitude(translation.Value.x), .1f);
-            //var normalized = normalize(new float2(translation.Value.x, translation.Value.y));
-            //vel.v += (sunGravity * Time.deltaTime * -normalized) / math.pow(magnitude, 2);
-
-            // do planet gravity
+            // All of this is to get the closest planet as efficiently as possible
             var closestPlanet = planetArray[0];
             var closestPlanetDiff = translation.Value - closestPlanet.Value;
             var closestPlanetDist = getMagnitude(closestPlanetDiff);
@@ -74,7 +77,7 @@ public class Moversystem1 : ComponentSystem
                     closestPlanetDiff = diff;
                 }
             }
-
+            // Then we simply move towards the planet that's closet
             var magnitude = math.max(closestPlanetDist, .1f);
             var normalized = normalize(new float2(closestPlanetDiff.x, closestPlanetDiff.y));
             vel.v += (planetGravity * Time.deltaTime * -normalized) / math.pow(magnitude, 2);
@@ -88,6 +91,8 @@ public class Moversystem1 : ComponentSystem
                 translation.Value += new float3(newVel.x, newVel.y, 0);
             }
         });
+
+        planetArray.Dispose();
     }
 
 

@@ -30,11 +30,11 @@ public class Testing : MonoBehaviour
         em = World.Active.GetOrCreateManager<EntityManager>();
 
         starArchtype = em.CreateArchetype(
-           typeof(Translation),
-           typeof(Scale),
-           typeof(RenderMesh),
-           typeof(LocalToWorld),
-           typeof(StarClassComponent)
+            typeof(Translation),
+            typeof(Scale),
+            typeof(RenderMesh),
+            typeof(LocalToWorld),
+            typeof(StarClassComponent)
         );
         planetArchtype = em.CreateArchetype(
             typeof(Translation),
