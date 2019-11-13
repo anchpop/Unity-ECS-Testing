@@ -5,4 +5,5 @@ using Unity.Entities;
 
 public struct PlanetClassComponent : IComponentData
 {
+    public bool controlledByUser;
 }

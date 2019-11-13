@@ -10,10 +10,14 @@ public class Moversystem1 : ComponentSystem
 {
     float sunGravity = 4;
     float planetGravity = 1;
+
+    Testing test;
+
     protected override void OnUpdate()
     {
+        test = GameObject.FindGameObjectWithTag("Player").GetComponent<Testing>();
         NativeArray<Entity> satelliteArray = new NativeArray<Entity>(1000, Allocator.Temp);
-        NativeArray<Translation> planetArray = new NativeArray<Translation>(9, Allocator.Temp);
+        NativeArray<Translation> planetArray = new NativeArray<Translation>(test.numPlanets, Allocator.Temp);
 
         int i = 0;
         Entities.ForEach((ref PlanetClassComponent _, ref Translation translation) =>
@@ -22,11 +26,30 @@ public class Moversystem1 : ComponentSystem
             i++;
         });
 
-        Entities.ForEach((ref PlanetClassComponent _, ref Translation translation, ref VelocityComponent vel) =>
+        Entities.ForEach((ref PlanetClassComponent planet, ref Translation translation, ref VelocityComponent vel) =>
         {
-            var magnitude = math.max(getMagnitude(translation.Value), .1f);
-            var normalized = normalize(new float2(translation.Value.x, translation.Value.y));
-            vel.v += (sunGravity * Time.deltaTime * -normalized) / math.pow(magnitude, 2);
+            if (!planet.controlledByUser)
+            {
+                var magnitude = math.max(getMagnitude(translation.Value), .1f);
+                var normalized = normalize(new float2(translation.Value.x, translation.Value.y));
+                vel.v += (sunGravity * Time.deltaTime * -normalized) / math.pow(magnitude, 2);
+            }
+            else
+            {
+                var v3 = Input.mousePosition;
+                v3.z = 10.0f;
+                v3 = Camera.main.ScreenToWorldPoint(v3);
+                var diff = new float3(v3.x, v3.y, 0) - translation.Value;
+                var velocity = diff / Time.deltaTime;
+                vel.v = new float2(velocity.x, velocity.y);
+                translation.Value = new float3(v3.x, v3.y, 0);
+                if (Input.GetMouseButtonUp(0))
+                {
+                    vel.kinematic = false;
+                    planet.controlledByUser = false;
+                }
+            }
+
         });
 
         Entities.ForEach((ref SatelliteClassComponent _, ref Translation translation, ref VelocityComponent vel) =>
@@ -59,8 +82,11 @@ public class Moversystem1 : ComponentSystem
 
         Entities.ForEach((ref Translation translation, ref VelocityComponent vel) =>
         {
-            var newVel = vel.v * Time.deltaTime;
-            translation.Value += new float3(newVel.x, newVel.y, 0);
+            if (!vel.kinematic)
+            {
+                var newVel = vel.v * Time.deltaTime;
+                translation.Value += new float3(newVel.x, newVel.y, 0);
+            }
         });
     }
 
